@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  web-segura:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development

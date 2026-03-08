@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Principal - Vulnerable a SQLi</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f6f8fa;
+            margin: 0;
+            padding: 0;
+            color: #24292f;
+        }
+
+        .navbar {
+            background-color: #24292f;
+            padding: 1rem 2rem;
+            color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 0.4rem 1rem;
+            background-color: #3f444d;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .navbar a:hover {
+            background-color: #57606a;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 3rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            border: 1px solid #d0d7de;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #24292f;
+        }
+
+        p {
+            color: #57606a;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-container {
+            background-color: #f6f8fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #d0d7de;
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .search-form input[type="text"] {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+        }
+
+        .search-form input[type="text"]:focus {
+            outline: none;
+            border-color: #0969da;
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+        }
+
+        .search-form button {
+            padding: 0.5rem 1.25rem;
+            background-color: #0969da;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .search-form button:hover {
+            background-color: #0550ae;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #d0d7de;
+        }
+
+        th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+            color: #57606a;
+            border-top: 1px solid #d0d7de;
+        }
+
+        tr:hover td {
+            background-color: #f6f8fa;
+        }
+
+        .error {
+            color: #cf222e;
+            background-color: #FFEBE9;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 129, 130, 0.4);
+            margin-bottom: 1.5rem;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        .demo-hints {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #57606a;
+        }
+
+        code {
+            background-color: rgba(175, 184, 193, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #24292f;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <div style="font-weight: 600; font-size: 1.2rem; color: white;">Sistema de Administración de Personal</div>
+        <div>
+            Usuario actual: <strong style="color: white; margin-right: 1.5rem;">{{ username }}</strong>
+            <a href="/logout">Desconectar</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Directorio Público de Usuarios</h2>
+            <p>Solo se muestra el nombre de usuario, correo y teléfono de forma pública por razones de seguridad.</p>
+
+            <div class="search-container">
+                <form action="/dashboard" method="GET" class="search-form">
+                    <input type="text" name="search" placeholder="Buscar empleado por nombre de usuario..."
+                        value="{{ search_query }}">
+                    <button type="submit">Buscar</button>
+                    {% if search_query %}
+                    <a href="/dashboard"
+                        style="display: flex; align-items: center; justify-content: center; text-decoration: none; padding: 0 1rem; color: #57606a; border: 1px solid #d0d7de; border-radius: 6px; background: white;">Limpiar</a>
+                    {% endif %}
+                </form>
+
+                <div class="demo-hints">
+                    <strong>APP práctica SQL Injection:</strong> En este campo hay una vulnerabilidad, por favor, no
+                    intente hacer ningúna busqueda que atente contra la seguridad de la base de datos.
+                    Ó intentar buscar columnas no visualizadas.
+                </div>
+            </div>
+
+            {% if error %}
+            <div class="error">
+                <strong>Error de SQL detectado (útil para Error-Based SQLi):</strong><br><br>{{ error }}
+            </div>
+            {% endif %}
+
+            {% if users %}
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Nombre de Usuario</th>
+                        <th>Correo Electrónico</th>
+                        <th>Teléfono</th>
+                        {% if users and users[0]|length > 4 %}
+                        <th>Datos Extra (SQLi)</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in users %}
+                    <tr>
+                        <td>{{ row[0] }}</td>
+                        <td>{{ row[1] }}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{{ row[3] }}</td>
+                        {% if row|length > 4 %}
+                        <td>
+                            {% for col_idx in range(4, row|length) %}
+                            {{ row[col_idx] }}
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            {% if search_query and not error %}
+            <div style="text-align: center; padding: 2rem; color: #57606a;">
+                No se encontraron usuarios que coincidan con "<strong>{{ search_query }}</strong>".
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</body>
+
+</html>
