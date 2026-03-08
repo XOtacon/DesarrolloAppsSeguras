@@ -16,8 +16,7 @@ def get_db_connection():
 
 @app.route('/')
 def index():
-    if 'user' in session:
-        return redirect(url_for('dashboard'))
+    session.pop('user', None)
     return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
