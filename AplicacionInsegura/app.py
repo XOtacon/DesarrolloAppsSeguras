@@ -60,11 +60,12 @@ def dashboard():
     cursor = conn.cursor()
     
     if search_query:
-        # VULNERABLE SQL QUERY (SQL Injection via el buscador que permite usar UNION SELECT)
-        query = f"SELECT id, username, email, phone FROM users WHERE username LIKE '%{search_query}%'"
-        print(f"[*] Ejecutando Consulta: {query}") 
+        # SECURE SQL QUERY (Parameterized query prevents SQL Injection)
+        query = "SELECT id, username, email, phone FROM users WHERE username LIKE %s"
+        search_param = f"%{search_query}%"
+        print(f"[*] Ejecutando Consulta Parametrizada: {query} with param {search_param}") 
         try:
-            cursor.execute(query)
+            cursor.execute(query, (search_param,))
             users = cursor.fetchall()
         except pymssql.Error as e:
             error_msg = f"Error en consulta: {e}"
