@@ -3,12 +3,12 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     env_file: .env
     ports:
-      - "1433:1433"
+      - "1434:1433"
 
-  web:
+  web-segura:
     build: .
     ports:
-      - "5000:5000"
+      - "5001:5001"
     env_file: .env
     environment:
       - FLASK_APP=app.py
