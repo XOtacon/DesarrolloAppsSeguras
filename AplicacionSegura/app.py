@@ -6,21 +6,12 @@ app = Flask(__name__)
 app.secret_key = 'clave_secreta_super_segura_para_el_demo'
 
 def get_db_connection():
-    server = os.getenv('DB_SERVER')
-    user = os.getenv('DB_USER')
-    password = os.getenv('DB_PASSWORD')
-    database = os.getenv('DB_NAME')
-
-    if not all([server, user, password, database]):
-        print("[!] ERROR: Faltan variables de entorno para la conexión a la BD.")
-        print(f"    SERVER: {server}, USER: {user}, PASS: {'***' if password else 'None'}, DB: {database}")
-    
-    # Se obtienen las variables de entorno configuradas
+    # Se obtienen las variables de entorno configuradas en el docker-compose.yml o archivo .env
     conn = pymssql.connect(
-        server=server,
-        user=user,
-        password=password,
-        database=database
+        server=os.getenv('DB_SERVER'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME')
     )
     return conn
 
@@ -31,18 +22,19 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # VULNERABLE SQL QUERY (SQL Injection usando concatenación)
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    print(f"[*] Ejecutando Consulta: {query}") # Útil para consola/demo
+    # SEGURIDAD: Consulta parametrizada para prevenir inyección SQL
+    query = "SELECT * FROM users WHERE username = %s AND password = %s"
+    print(f"[*] Ejecutando Consulta parametrizada sobre la tabla users.") 
     
     try:
-        cursor.execute(query)
+        # Pymssql maneja la interpolación de los parámetros de forma segura
+        cursor.execute(query, (username, password))
         user = cursor.fetchone() # Fetches un tuple
         conn.close()
         
@@ -54,8 +46,10 @@ def login():
             return render_template('index.html', error="Credenciales inválidas, intente nuevamente.")
     except pymssql.Error as e:
         conn.close()
-        # Mostrar errores de SQL directamente (útil en clases para entender los ataques Error-Based SQLi)
-        return render_template('index.html', error=f"Error en BD: {e}")
+        # Ocultar errores de SQL directamente al usuario para prevenir Error-Based SQLi
+        # Loggear el error internamente y mostrar un mensaje genérico
+        print(f"[*] Error interno de base de datos en login: {e}")
+        return render_template('index.html', error="Ocurrió un error de conexión, intente nuevamente.")
 
 @app.route('/dashboard')
 def dashboard():
@@ -70,14 +64,17 @@ def dashboard():
     cursor = conn.cursor()
     
     if search_query:
-        # VULNERABLE SQL QUERY (SQL Injection via el buscador que permite usar UNION SELECT)
-        query = f"SELECT id, username, email, phone FROM users WHERE username LIKE '%{search_query}%'"
-        print(f"[*] Ejecutando Consulta: {query}") 
+        # SEGURIDAD: Consulta parametrizada con LIKE. 
+        # El comodín % se agrega al parámetro, no a la consulta SQL.
+        query = "SELECT id, username, email, phone FROM users WHERE username LIKE %s"
+        search_param = f"%{search_query}%"
+        print(f"[*] Ejecutando Búsqueda parametrizada.") 
         try:
-            cursor.execute(query)
+            cursor.execute(query, (search_param,))
             users = cursor.fetchall()
         except pymssql.Error as e:
-            error_msg = f"Error en consulta: {e}"
+            print(f"[*] Error interno de base de datos en búsqueda: {e}")
+            error_msg = "Ocurrió un error al realizar la búsqueda."
     else:
         # Consulta por defecto segura si no hay búsqueda
         cursor.execute("SELECT id, username, email, phone FROM users")
@@ -92,5 +89,5 @@ def logout():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    print("Iniciando aplicación web vulnerable en puerto 5000...")
-    app.run(debug=True, port=5000)
+    print("Iniciando aplicación web Segura en puerto 5001...")
+    app.run(debug=True, port=5001)
